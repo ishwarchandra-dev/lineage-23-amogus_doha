@@ -1,0 +1,24 @@
+diff --git a/BoardConfig.mk b/BoardConfig.mk
+index 9e00b92..b617293 100644
+--- a/BoardConfig.mk
++++ b/BoardConfig.mk
+@@ -31,6 +31,19 @@ ifneq ($(TARGET_PREBUILT_KERNEL),)
+       $(wildcard device/motorola/amogus-kernel/modules/*.ko)
+ endif
+ 
++# Kernel modules to load at boot, from the source-built kernel.
++# LineageOS's kernel.mk always writes vendor/lib/modules/modules.load
++# (vendor/lineage 01eef7f3), empty when this list is empty.
++# That empty file makes init.modprobe.sh skip its "load everything"
++# fallback and leaves vendor_modprobe.sh with nothing to load, so these
++# never loaded: the aw8695 haptics chip had no driver and the vibrator
++# did not work.
++BOARD_VENDOR_KERNEL_MODULES_LOAD := \
++    aw8624 \
++    aw8695 \
++    sx933x_sar \
++    stmvl53l1
++
+ # Partitions
+ BOARD_VENDORIMAGE_PARTITION_SIZE := 620756992
+ BOARD_SYSTEMIMAGE_PARTITION_SIZE := 3238002688
