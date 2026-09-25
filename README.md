@@ -30,8 +30,8 @@ patches that get that port building and booting on LineageOS 23.2.
   20 GB. With 28 GB RAM and 8 GB swap it was OOM-killed.
 - A fast internet connection. The first sync downloads about 100 GB of
   git history.
-- Time. With a warm ccache on 16 threads, a rebuild takes about 7 minutes.
-  We never timed a clean first build, but expect it to take hours.
+- Time. A clean build (empty ccache) took 2 h 51 min on 16 threads with
+  30 GB RAM. With a warm ccache, a rebuild takes about 7 minutes.
 
 ## Building
 
