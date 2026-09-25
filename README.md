@@ -103,10 +103,11 @@ Things you should know:
 ## Status
 
 Tested on real hardware, and working: boot, mobile calls and data (SIM),
-Wi-Fi (including WPA3-SAE), Bluetooth (HID devices), NFC tag reading, GPS,
-fingerprint (FPC), vibration, camera, audio and charging.
+Wi-Fi (including WPA3-SAE), Bluetooth (HID devices and A2DP audio to a
+speaker), NFC tag reading, GPS, fingerprint (FPC), vibration, camera, audio
+and charging.
 
-Not verified yet: VoLTE/IMS registration, Bluetooth A2DP/HFP audio.
+Not verified yet: VoLTE/IMS registration, Bluetooth headset call audio (HFP).
 
 ---
 
