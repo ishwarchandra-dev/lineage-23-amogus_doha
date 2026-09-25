@@ -67,8 +67,12 @@ The output is
 The separate `boot.img`, `dtbo.img` and `vbmeta.img` are in
 `out/target/product/amogus_doha/obj/PACKAGING/target_files_intermediates/*/IMAGES/`.
 
-Options: `JOBS=<n>` sets the job count for sync and build (the default is
-`nproc`). `SKIP_SYNC=1` skips `repo sync` on later runs.
+Options: `JOBS=<n>` sets the build job count (the default is `nproc`).
+`SYNC_JOBS=<n>` sets the sync job count (the default is 4). Keep it low:
+android.googlesource.com rate-limits parallel fetches with `HTTP 429` /
+`RESOURCE_EXHAUSTED`. If a sync still fails that way, wait a few minutes and
+run the script again; it picks up where it stopped. `SKIP_SYNC=1` skips
+`repo sync` on later runs.
 
 The build is `userdebug`, unsigned (it uses the AOSP test keys) and has no
 GApps.
