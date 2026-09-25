@@ -63,11 +63,13 @@ if command -v ccache >/dev/null; then
   export USE_CCACHE=1 CCACHE_EXEC=$(command -v ccache)
 fi
 
-set +u # envsetup.sh and lunch aren't nounset-clean
+# envsetup.sh, breakfast and mka aren't errexit/nounset-clean, so check
+# their results by hand.
+set +eu
 source build/envsetup.sh
-breakfast "$DEVICE" userdebug
-mka -j"$JOBS" target-files-package bacon
-set -u
+breakfast "$DEVICE" userdebug || exit 1
+mka -j"$JOBS" target-files-package bacon || exit 1
+set -eu
 
 echo
 echo "Done. Zip:"

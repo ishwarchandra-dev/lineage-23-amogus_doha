@@ -119,13 +119,6 @@ also assume newer chips. Each section names the patch it lives in.
 
 ### Needed to get the build working
 
-**`vendor/lineage`: restore `vendorsetup.sh`.** At this revision
-`vendor/lineage` has no `vendorsetup.sh`. Without it, `build/envsetup.sh`
-never loads LineageOS's own `breakfast`, and the plain AOSP one doesn't
-set a release config. The build then fails with
-`No release config set for target`. The patch adds back the usual
-one-line hook, `source vendor/lineage/build/envsetup.sh`.
-
 **`device/motorola/amogus`: drop the `hardware/qcom/bootctrl` namespace
 import** (`Android.bp`). That project has only makefiles, so it doesn't
 declare a Soong namespace, and Soong refuses to import a namespace that

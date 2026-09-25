@@ -1,7 +1,0 @@
-diff --git a/vendorsetup.sh b/vendorsetup.sh
-new file mode 100644
-index 00000000..2bb31402
---- /dev/null
-+++ b/vendorsetup.sh
-@@ -0,0 +1 @@
-+source vendor/lineage/build/envsetup.sh
