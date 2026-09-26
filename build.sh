@@ -11,6 +11,8 @@
 #   MANIFEST_BRANCH  manifest branch (default: this checkout's current
 #                 branch, or main when MANIFEST_URL is set)
 #   CCACHE_SIZE   ccache size limit (default: 50G)
+#   SKIN_THROTTLE_C  skin temperature (°C) at which the thermal HAL reports
+#                 throttling (default: 40)
 #   ZIP_DIR       where finished builds are copied (default: zips/ next to
 #                 SOURCE_DIR)
 #   SKIP_SYNC=1   don't run repo init or repo sync
@@ -27,6 +29,10 @@ MANIFEST_URL=${MANIFEST_URL:-$HERE}
 DEVICE=amogus_doha
 # Projects patched by the last run, as "<project> <patch blob> <tree>" lines.
 STAMP=$SRC/.repo/doha-patches
+SKIN_THROTTLE_C=${SKIN_THROTTLE_C:-40}
+case $SKIN_THROTTLE_C in
+  ''|*[!0-9]*) echo "SKIN_THROTTLE_C must be a whole number of °C" >&2; exit 1 ;;
+esac
 
 # repo needs a git identity, and git refuses to read a checkout owned by
 # another user (common when this runs in a container). Pass both as
@@ -109,15 +115,21 @@ done
 # exactly as the last run left it: rewriting the files would change their
 # mtimes and make the build redo work. Otherwise reset it and apply the
 # patch again, so a patch is never applied twice.
+# Patches can contain @NAME@ placeholders for build settings. The recorded
+# blob is that of the filled-in patch, so changing a setting counts as a
+# changed patch.
+render_patch() {
+  sed "s/@SKIN_THROTTLE_MC@/$((SKIN_THROTTLE_C * 1000))/g" "$HERE/patches/$1.patch"
+}
+
 for proj in "${projects[@]}"; do
-  patch=$HERE/patches/$proj.patch
-  if [ "$(git hash-object "$patch")" = "${old_patch[$proj]:-}" ] &&
+  if [ "$(render_patch "$proj" | git hash-object --stdin)" = "${old_patch[$proj]:-}" ] &&
      [ "$(worktree_id "$proj")" = "${old_tree[$proj]:-}" ]; then
     echo "unchanged patches/$proj.patch"
     continue
   fi
   reset_project "$proj"
-  git -C "$proj" apply --whitespace=nowarn "$patch"
+  render_patch "$proj" | git -C "$proj" apply --whitespace=nowarn
   echo "applied patches/$proj.patch"
 done
 
@@ -132,7 +144,7 @@ done
 # Record the result only now, after kernel-headers exists, so the next run
 # sees the same trees.
 for proj in "${projects[@]}"; do
-  echo "$proj $(git hash-object "$HERE/patches/$proj.patch") $(worktree_id "$proj")"
+  echo "$proj $(render_patch "$proj" | git hash-object --stdin) $(worktree_id "$proj")"
 done > "$STAMP.new"
 mv "$STAMP.new" "$STAMP"
 

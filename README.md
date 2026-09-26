@@ -87,6 +87,9 @@ run the script again; it picks up where it stopped. `SKIP_SYNC=1` skips
 ccache limit (the default is `50G`). `ZIP_DIR=<dir>` changes where builds
 are copied (the default is `zips/` next to the source directory).
 `MANIFEST_BRANCH=<branch>` syncs a different branch of the manifest.
+`SKIN_THROTTLE_C=<°C>` sets the skin temperature at which the thermal HAL
+reports throttling (the default is 40). With Docker, pass these as
+`-e NAME=value`.
 
 The build is `userdebug`, unsigned (it uses the AOSP test keys) and has no
 GApps.
@@ -237,7 +240,7 @@ requires kernel 4.19 or newer for BPF networking. doha has 4.14.
   maps can't be created on 4.14. `system_server` threw on this and
   crashed. Now it treats the maps as unsupported and skips them.
 
-**Thermal HAL** (`device/motorola/amogus`).
+**Thermal HAL** (`device/motorola/amogus`, `vendor/qcom/opensource/thermal`).
 
 - doha ships the HIDL `android.hardware.thermal@2.0-service.qti`.
   legacy-um only labels the AIDL binary name, so the HIDL service had the
@@ -251,6 +254,14 @@ requires kernel 4.19 or newer for BPF networking. doha has 4.14.
   and registers as both `@1.0::IThermal/default` and
   `@2.0::IThermal/default`, so the 1.0 lookup succeeds and
   `frameworks/base` needs no change.
+- The HAL's trinket (soc 394) config names two thermal zones that doha's
+  kernel doesn't have: the skin sensor `xo-therm-adc`, which is called
+  `xo_therm` here, and the battery percentage sensor `soc`. The HAL gives
+  up on all sensors when one is missing, so it answered every request with
+  "ThermalHAL not initialized properly" and `ThermalManagerService` got no
+  temperatures. The patch uses `xo_therm` and drops `soc`. The skin
+  sensor reports throttling from 40 °C, Qualcomm's trinket value;
+  `SKIN_THROTTLE_C` changes it (see the build options).
 - `vendor/qcom/opensource/thermal`: the service in the `.rc` is renamed
   to `vendor.thermal-hal-doha`. This was a debugging attempt that didn't
   fix the problem. It's harmless, and we kept it because the tested build
