@@ -237,20 +237,20 @@ requires kernel 4.19 or newer for BPF networking. doha has 4.14.
   maps can't be created on 4.14. `system_server` threw on this and
   crashed. Now it treats the maps as unsupported and skips them.
 
-**Thermal HAL** (`device/motorola/amogus`, `frameworks/base`).
+**Thermal HAL** (`device/motorola/amogus`).
 
 - doha ships the HIDL `android.hardware.thermal@2.0-service.qti`.
   legacy-um only labels the AIDL binary name, so the HIDL service had the
   generic `vendor_file` label, init couldn't start it, and
   `ctl.interface_start` failed. The patch adds a `hal_thermal_default_exec`
   label to amogus's `file_contexts`.
-- `HardwarePropertiesManagerService` called the blocking
-  `IThermal@1.0::getService()` on `system_server`'s main thread. doha
-  doesn't have a 1.0 or AIDL thermal HAL, so the call never returned and
-  the watchdog killed `system_server` after 67 seconds, in a loop. The
-  patch switches to `tryGetService()` and falls back to the 2.0 HAL. 2.0
-  extends 1.0, so the existing code paths work with it. `Android.bp` adds
-  the `thermal@2.0` library.
+- With the service unable to start, `HardwarePropertiesManagerService`'s
+  blocking `IThermal@1.0::getService()` on `system_server`'s main thread
+  never returned, and the watchdog killed `system_server` after 67
+  seconds, in a loop. The label fix is enough: the service implements 2.0
+  and registers as both `@1.0::IThermal/default` and
+  `@2.0::IThermal/default`, so the 1.0 lookup succeeds and
+  `frameworks/base` needs no change.
 - `vendor/qcom/opensource/thermal`: the service in the `.rc` is renamed
   to `vendor.thermal-hal-doha`. This was a debugging attempt that didn't
   fix the problem. It's harmless, and we kept it because the tested build
