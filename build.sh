@@ -8,7 +8,10 @@
 #   JOBS          parallel build jobs (default: nproc)
 #   SYNC_JOBS     parallel repo sync jobs (default: 4)
 #   MANIFEST_URL  manifest repo to init from (default: this checkout)
-#   SKIP_SYNC=1   don't run repo sync (patches are still re-applied)
+#   MANIFEST_BRANCH  manifest branch (default: this checkout's current
+#                 branch, or main when MANIFEST_URL is set)
+#   CCACHE_SIZE   ccache size limit (default: 50G)
+#   SKIP_SYNC=1   don't run repo init or repo sync
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -20,6 +23,8 @@ JOBS=${JOBS:-$(nproc)}
 SYNC_JOBS=${SYNC_JOBS:-4}
 MANIFEST_URL=${MANIFEST_URL:-$HERE}
 DEVICE=amogus_doha
+# Projects patched by the last run, as "<project> <patch blob> <tree>" lines.
+STAMP=$SRC/.repo/doha-patches
 
 # repo needs a git identity, and git refuses to read a checkout owned by
 # another user (common when this runs in a container). Pass both as
@@ -33,22 +38,85 @@ export GIT_CONFIG_KEY_2=user.email GIT_CONFIG_VALUE_2="$email"
 
 cd "$SRC"
 
-if [ ! -d .repo ]; then
-  repo init -u "$MANIFEST_URL" -b main -m default.xml --git-lfs -g default,-darwin
-fi
 if [ "${SKIP_SYNC:-0}" != 1 ]; then
-  repo sync -c -j"$SYNC_JOBS" --retry-fetches=5 --force-sync --no-tags --no-clone-bundle
+  # repo reads the manifest from a committed branch, while the patches come
+  # from the working tree. Sync the branch that is checked out here, and refuse
+  # to run with an uncommitted default.xml, so the two always match.
+  if [ "$MANIFEST_URL" = "$HERE" ]; then
+    if [ -z "${MANIFEST_BRANCH:-}" ]; then
+      MANIFEST_BRANCH=$(git -C "$HERE" symbolic-ref -q --short HEAD) || {
+        echo "$HERE has a detached HEAD; check out a branch or set MANIFEST_BRANCH" >&2
+        exit 1
+      }
+    fi
+    if ! git -C "$HERE" diff --quiet HEAD -- default.xml; then
+      echo "default.xml has uncommitted changes; repo would not see them. Commit them first." >&2
+      exit 1
+    fi
+  fi
+  MANIFEST_BRANCH=${MANIFEST_BRANCH:-main}
+
+  # Run init every time so a changed MANIFEST_URL or branch takes effect.
+  repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" -m default.xml --git-lfs -g default,-darwin
+  # --force-checkout lets a pin bump replace a project that still carries
+  # the previous run's patch. Projects already at their pin aren't touched.
+  repo sync -c -j"$SYNC_JOBS" --retry-fetches=5 --force-sync --force-checkout \
+    --no-tags --no-clone-bundle
 fi
 
-# Each patches/<project path>.patch applies to that project. Reset the
-# project first so re-running this script never applies a patch twice.
-(cd "$HERE/patches" && find . -name '*.patch' | sort) | while read -r patch; do
-  proj=${patch#./}
-  proj=${proj%.patch}
-  git -C "$proj" reset -q --hard
-  git -C "$proj" clean -q -fd
-  git -C "$proj" apply --whitespace=nowarn "$HERE/patches/$patch"
-  echo "applied patches/${patch#./}"
+# The tree object of a project's working tree, including untracked files, so
+# we can tell whether it is still exactly as the last run left it.
+worktree_id() {
+  local index
+  index=$(mktemp)
+  (cd "$1" && cp "$(git rev-parse --git-path index)" "$index")
+  GIT_INDEX_FILE=$index git -C "$1" add -A
+  GIT_INDEX_FILE=$index git -C "$1" write-tree
+  rm -f "$index"
+}
+
+reset_project() {
+  git -C "$1" reset -q --hard
+  git -C "$1" clean -q -fd
+}
+
+declare -A old_patch old_tree
+if [ -f "$STAMP" ]; then
+  while read -r proj blob tree; do
+    old_patch[$proj]=$blob
+    old_tree[$proj]=$tree
+  done < "$STAMP"
+fi
+
+# Each patches/<project path>.patch applies to that project.
+mapfile -t projects < <(cd "$HERE/patches" && find . -name '*.patch' | sed 's|^\./||; s|\.patch$||' | sort)
+declare -A patched
+for proj in "${projects[@]}"; do
+  patched[$proj]=1
+done
+
+# Undo patches that were removed or renamed since the last run.
+for proj in "${!old_patch[@]}"; do
+  if [ -z "${patched[$proj]:-}" ] && [ -d "$proj" ]; then
+    reset_project "$proj"
+    echo "reverted $proj (its patch is gone)"
+  fi
+done
+
+# Leave a project alone when its patch hasn't changed and its tree is
+# exactly as the last run left it: rewriting the files would change their
+# mtimes and make the build redo work. Otherwise reset it and apply the
+# patch again, so a patch is never applied twice.
+for proj in "${projects[@]}"; do
+  patch=$HERE/patches/$proj.patch
+  if [ "$(git hash-object "$patch")" = "${old_patch[$proj]:-}" ] &&
+     [ "$(worktree_id "$proj")" = "${old_tree[$proj]:-}" ]; then
+    echo "unchanged patches/$proj.patch"
+    continue
+  fi
+  reset_project "$proj"
+  git -C "$proj" apply --whitespace=nowarn "$patch"
+  echo "applied patches/$proj.patch"
 done
 
 # An empty *file* at this path stops AOSP from treating
@@ -56,11 +124,21 @@ done
 # directory (it is added to the include path whenever the path exists, and
 # there's no opt-out). The real headers come from
 # PRODUCT_VENDOR_KERNEL_HEADERS, set in patches/device/motorola/targets.patch.
-: > device/motorola/amogus_doha/kernel-headers
+[ -e device/motorola/amogus_doha/kernel-headers ] ||
+  : > device/motorola/amogus_doha/kernel-headers
+
+# Record the result only now, after kernel-headers exists, so the next run
+# sees the same trees.
+for proj in "${projects[@]}"; do
+  echo "$proj $(git hash-object "$HERE/patches/$proj.patch") $(worktree_id "$proj")"
+done > "$STAMP.new"
+mv "$STAMP.new" "$STAMP"
 
 export ALLOW_MISSING_DEPENDENCIES=true
 if command -v ccache >/dev/null; then
   export USE_CCACHE=1 CCACHE_EXEC=$(command -v ccache)
+  # ccache's own default is 5 GB, far too small for this build.
+  ccache -M "${CCACHE_SIZE:-50G}" >/dev/null
 fi
 
 # envsetup.sh, breakfast and mka aren't errexit/nounset-clean, so check

@@ -52,11 +52,15 @@ Without Docker, run `./build.sh ~/doha/src` from the clone.
 
 `build.sh` does the following:
 
-1. Runs `repo init` against `default.xml` in this checkout and then
-   `repo sync`. Every project is pinned to a commit, so the sources you get
-   are the same whenever you sync.
+1. Runs `repo init` against `default.xml` on the branch checked out in this
+   clone, and then `repo sync`. Every project is pinned to a commit, so the
+   sources you get are the same whenever you sync. repo reads the committed
+   manifest, so the script stops if `default.xml` has uncommitted changes.
 2. Resets each patched project and applies its patch from `patches/`, so
-   you can run the script again safely.
+   you can run the script again safely. A project whose patch and files are
+   unchanged since the last run is left alone, so its files keep their
+   timestamps and the build doesn't redo work. A project whose patch was
+   deleted is reset to its pinned commit.
 3. Creates the empty file `device/motorola/amogus_doha/kernel-headers`
    (see [the kernel headers fix](#kernel-headers)).
 4. Runs `breakfast amogus_doha userdebug` and
@@ -72,7 +76,9 @@ Options: `JOBS=<n>` sets the build job count (the default is `nproc`).
 android.googlesource.com rate-limits parallel fetches with `HTTP 429` /
 `RESOURCE_EXHAUSTED`. If a sync still fails that way, wait a few minutes and
 run the script again; it picks up where it stopped. `SKIP_SYNC=1` skips
-`repo sync` on later runs.
+`repo init` and `repo sync` on later runs. `CCACHE_SIZE=<size>` sets the
+ccache limit (the default is `50G`). `MANIFEST_BRANCH=<branch>` syncs a
+different branch of the manifest.
 
 The build is `userdebug`, unsigned (it uses the AOSP test keys) and has no
 GApps.
