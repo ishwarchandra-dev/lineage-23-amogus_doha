@@ -87,6 +87,8 @@ inside `boot`.
 2. Boot into recovery. Do a factory reset when coming from another ROM.
    Then choose **Apply update → Apply from ADB** and run
    `adb sideload lineage-23.2-*.zip`.
+3. When the install finishes, recovery asks whether you want to install an
+   additional zip. Choose **No**, then **Reboot system now**.
 
 Things you should know:
 
@@ -95,9 +97,8 @@ Things you should know:
   active one before you sideload (`fastboot --set-active=<slot>`).
 - During the sideload, the transfer slows down a lot at around 47%.
   Tapping the phone's screen speeds it up again.
-- After the install, recovery asks whether you want to install an
-  additional zip. `adb sideload` doesn't exit until you answer. Choose
-  **No**, then **Reboot system now**.
+- `adb sideload` doesn't exit until you answer the additional-zip prompt
+  from step 3.
 - When you flash `vbmeta`, the bootloader prints
   `WARNING: vbmeta_a anti rollback downgrade, 0 vs 15`. That's expected
   on an unlocked doha, and the flash still goes through.
