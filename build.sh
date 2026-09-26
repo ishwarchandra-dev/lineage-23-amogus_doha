@@ -11,6 +11,7 @@
 #   MANIFEST_BRANCH  manifest branch (default: this checkout's current
 #                 branch, or main when MANIFEST_URL is set)
 #   CCACHE_SIZE   ccache size limit (default: 50G)
+#   ZIP_DIR       where finished builds are copied (default: SOURCE_DIR/zips)
 #   SKIP_SYNC=1   don't run repo init or repo sync
 set -euo pipefail
 
@@ -147,8 +148,23 @@ set +eu
 source build/envsetup.sh
 breakfast "$DEVICE" userdebug || exit 1
 mka -j"$JOBS" target-files-package bacon || exit 1
+version=$(get_build_var LINEAGE_VERSION) || exit 1
 set -eu
 
+# bacon hard-links the dated zip to lineage_<device>-ota.zip, which the next
+# build rewrites in place, so every earlier zip in out/ ends up holding the
+# newest build. Keep a real copy of each build, with its images.
+product=$SRC/out/target/product/$DEVICE
+images=$product/obj/PACKAGING/target_files_intermediates/lineage_$DEVICE-target_files/IMAGES
+dest=${ZIP_DIR:-$SRC/zips}
+name=lineage-$version
+mkdir -p "$dest"
+cp "$product/$name.zip" "$dest/$name.zip"
+for img in boot dtbo vbmeta; do
+  cp "$images/$img.img" "$dest/$name-$img.img"
+done
+(cd "$dest" && sha256sum "$name.zip" "$name"-{boot,dtbo,vbmeta}.img > "$name.sha256sum")
+
 echo
-echo "Done. Zip:"
-ls -1 "$SRC/out/target/product/$DEVICE"/lineage-*.zip
+echo "Done. Build copied to $dest:"
+ls -1 "$dest/$name"*
