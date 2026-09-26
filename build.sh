@@ -11,7 +11,8 @@
 #   MANIFEST_BRANCH  manifest branch (default: this checkout's current
 #                 branch, or main when MANIFEST_URL is set)
 #   CCACHE_SIZE   ccache size limit (default: 50G)
-#   ZIP_DIR       where finished builds are copied (default: SOURCE_DIR/zips)
+#   ZIP_DIR       where finished builds are copied (default: zips/ next to
+#                 SOURCE_DIR)
 #   SKIP_SYNC=1   don't run repo init or repo sync
 set -euo pipefail
 
@@ -156,7 +157,7 @@ set -eu
 # newest build. Keep a real copy of each build, with its images.
 product=$SRC/out/target/product/$DEVICE
 images=$product/obj/PACKAGING/target_files_intermediates/lineage_$DEVICE-target_files/IMAGES
-dest=${ZIP_DIR:-$SRC/zips}
+dest=${ZIP_DIR:-$(dirname "$SRC")/zips}
 name=lineage-$version
 mkdir -p "$dest"
 cp "$product/$name.zip" "$dest/$name.zip"

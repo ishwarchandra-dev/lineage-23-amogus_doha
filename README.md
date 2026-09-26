@@ -37,13 +37,14 @@ patches that get that port building and booting on LineageOS 23.2.
 
 ```sh
 git clone http://192.168.1.18:3000/claude/lineage-23.2-amogus_doha.git doha-lineage
-mkdir -p ~/doha/src ~/doha/ccache
+mkdir -p ~/doha/src ~/doha/ccache ~/doha/zips
 
 docker run --rm -it \
   --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -v "$PWD/doha-lineage:/manifest:ro" \
   -v ~/doha/src:/src \
   -v ~/doha/ccache:/ccache -e CCACHE_DIR=/ccache \
+  -v ~/doha/zips:/zips -e ZIP_DIR=/zips \
   --entrypoint /manifest/build.sh \
   lineageos4microg/docker-lineage-cicd:latest /src
 ```
@@ -65,17 +66,17 @@ Without Docker, run `./build.sh ~/doha/src` from the clone.
    (see [the kernel headers fix](#kernel-headers)).
 4. Runs `breakfast amogus_doha userdebug` and
    `mka target-files-package bacon`.
-5. Copies the zip, `boot.img`, `dtbo.img` and `vbmeta.img` into `zips/`,
-   with a `.sha256sum` file.
+5. Copies the zip, `boot.img`, `dtbo.img` and `vbmeta.img` into
+   `~/doha/zips`, with a `.sha256sum` file.
 
 The output is
-`~/doha/src/zips/lineage-23.2-<date>-UNOFFICIAL-amogus_doha.zip`, next to
+`~/doha/zips/lineage-23.2-<date>-UNOFFICIAL-amogus_doha.zip`, next to
 `lineage-23.2-<date>-UNOFFICIAL-amogus_doha-{boot,dtbo,vbmeta}.img`. Use
 these copies, not the zips in `out/target/product/amogus_doha/`: `bacon`
 hard-links the dated zip there to `lineage_amogus_doha-ota.zip`, and the
 next build rewrites that file in place, so every older zip in `out/` ends
 up holding the newest build. A second build on the same day replaces that
-day's files in `zips/`.
+day's files in `~/doha/zips`.
 
 Options: `JOBS=<n>` sets the build job count (the default is `nproc`).
 `SYNC_JOBS=<n>` sets the sync job count (the default is 4). Keep it low:
@@ -84,8 +85,8 @@ android.googlesource.com rate-limits parallel fetches with `HTTP 429` /
 run the script again; it picks up where it stopped. `SKIP_SYNC=1` skips
 `repo init` and `repo sync` on later runs. `CCACHE_SIZE=<size>` sets the
 ccache limit (the default is `50G`). `ZIP_DIR=<dir>` changes where builds
-are copied (the default is `zips/` in the source directory). `MANIFEST_BRANCH=<branch>` syncs a
-different branch of the manifest.
+are copied (the default is `zips/` next to the source directory).
+`MANIFEST_BRANCH=<branch>` syncs a different branch of the manifest.
 
 The build is `userdebug`, unsigned (it uses the AOSP test keys) and has no
 GApps.
