@@ -94,8 +94,10 @@ Things you should know:
   one slot holds a known-good ROM you want to keep, make that slot the
   active one before you sideload (`fastboot --set-active=<slot>`).
 - During the sideload, the transfer slows down a lot at around 47%.
-  Tapping the phone's screen speeds it up again. Recovery reboots on its
-  own when the install is done.
+  Tapping the phone's screen speeds it up again.
+- After the install, recovery asks whether you want to install an
+  additional zip. `adb sideload` doesn't exit until you answer. Choose
+  **No**, then **Reboot system now**.
 - When you flash `vbmeta`, the bootloader prints
   `WARNING: vbmeta_a anti rollback downgrade, 0 vs 15`. That's expected
   on an unlocked doha, and the flash still goes through.
