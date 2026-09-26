@@ -238,9 +238,9 @@ requires kernel 4.19 or newer for BPF networking. doha has 4.14.
   extends 1.0, so the existing code paths work with it. `Android.bp` adds
   the `thermal@2.0` library.
 - `vendor/qcom/opensource/thermal`: the service in the `.rc` is renamed
-  to `vendor.thermal-hal-doha` and the license header is removed. This
-  was a debugging attempt that didn't fix the problem. It's harmless, and
-  we kept it because the tested build included it.
+  to `vendor.thermal-hal-doha`. This was a debugging attempt that didn't
+  fix the problem. It's harmless, and we kept it because the tested build
+  included it.
 
 ### Hardware fixes
 
